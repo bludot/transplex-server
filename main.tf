@@ -23,21 +23,21 @@ provider "esxi" {
   esxi_password      = var.esxi_password
 }
 
-data "template_file" "master_userdata" {
+data "template_file" "userdata" {
   template = "${file("userdata.yaml")}"
   vars = {
     username = var.username
     ssh_key_pub = var.ssh_key_pub
-    ssh_key_priv = var.ssh_key_priv
-    hostname = "${var.guest_name}-master"
+    plex_ip = var.plex_ip
+    hostname = "${var.guest_name}"
   }
 }
 
-data "template_file" "master_metadata" {
+data "template_file" "metadata" {
   template = "${file("metadata.yaml")}"
   vars = {
     gateway_ip = var.gateway_ip 
-    static_ip = var.master_ip
+    static_ip = var.transmission_ip
   }
 }
 
@@ -45,15 +45,17 @@ resource "esxi_guest" "master" {
   guest_name         = var.guest_name
   disk_store         = "datastore2"
 
+  memsize = 4096
+  boot_disk_size = 150
   ovf_source        = "focal-server-cloudimg-amd64.ova"
 
   network_interfaces {
     virtual_network = "internal_apps"
   }
   guestinfo = {
-    "metadata" = base64gzip("${data.template_file.master_metadata.rendered}")
+    "metadata" = base64gzip("${data.template_file.metadata.rendered}")
     "metadata.encoding" = "gzip+base64"
-    userdata = base64gzip("${data.template_file.master_userdata.rendered}")
+    userdata = base64gzip("${data.template_file.userdata.rendered}")
     "userdata.encoding" = "gzip+base64"
   }
   provisioner "local-exec" {
@@ -63,3 +65,6 @@ resource "esxi_guest" "master" {
   }
 }
 
+output "userdata" {
+  value = "${data.template_file.userdata.rendered}"
+}

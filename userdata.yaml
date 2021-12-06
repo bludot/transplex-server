@@ -2,6 +2,84 @@
 repo_update: true
 repo_upgrade: all
 
+packages:
+  - transmission-daemon
+  - nfs-common
+
+write_files:
+- content: |
+    {
+      "alt-speed-down": 50,
+      "alt-speed-enabled": false,
+      "alt-speed-time-begin": 540,
+      "alt-speed-time-day": 127,
+      "alt-speed-time-enabled": false,
+      "alt-speed-time-end": 1020,
+      "alt-speed-up": 50,
+      "bind-address-ipv4": "0.0.0.0",
+      "bind-address-ipv6": "::",
+      "blocklist-enabled": false,
+      "blocklist-url": "http://www.example.com/blocklist",
+      "cache-size-mb": 4,
+      "dht-enabled": true,
+      "download-dir": "/var/lib/transmission-daemon/Downloads",
+      "download-queue-enabled": true,
+      "download-queue-size": 5,
+      "encryption": 1,
+      "idle-seeding-limit": 30,
+      "idle-seeding-limit-enabled": false,
+      "incomplete-dir": "/var/lib/transmission-daemon/Downloads",
+      "incomplete-dir-enabled": false,
+      "lpd-enabled": false,
+      "message-level": 1,
+      "peer-congestion-algorithm": "",
+      "peer-id-ttl-hours": 6,
+      "peer-limit-global": 200,
+      "peer-limit-per-torrent": 50,
+      "peer-port": 51413,
+      "peer-port-random-high": 65535,
+      "peer-port-random-low": 49152,
+      "peer-port-random-on-start": false,
+      "peer-socket-tos": "default",
+      "pex-enabled": true,
+      "port-forwarding-enabled": true,
+      "preallocation": 1,
+      "prefetch-enabled": true,
+      "queue-stalled-enabled": true,
+      "queue-stalled-minutes": 30,
+      "ratio-limit": 2,
+      "ratio-limit-enabled": false,
+      "rename-partial-files": true,
+      "rpc-authentication-required": false,
+      "rpc-bind-address": "0.0.0.0",
+      "rpc-enabled": true,
+      "rpc-host-whitelist": "",
+      "rpc-host-whitelist-enabled": true,
+      "rpc-password": "{7f0bf3e1d2dd8b0e9f51cfb9ab7b0244a6339b56df0f7c7f",
+      "rpc-port": 9091,
+      "rpc-url": "/transmission/",
+      "rpc-username": "",
+      "rpc-whitelist": "127.0.0.1",
+      "rpc-whitelist-enabled": false,
+      "scrape-paused-torrents-enabled": true,
+      "script-torrent-done-enabled": false,
+      "script-torrent-done-filename": "",
+      "seed-queue-enabled": false,
+      "seed-queue-size": 10,
+      "speed-limit-down": 100,
+      "speed-limit-down-enabled": false,
+      "speed-limit-up": 100,
+      "speed-limit-up-enabled": false,
+      "start-added-torrents": true,
+      "trash-original-torrent-files": false,
+      "umask": 18,
+      "upload-slots-per-torrent": 14,
+      "utp-enabled": true
+    }
+  owner: root:root
+  path: /home/ubuntu/settings.json
+  permissions: '0777'
+
 system_info:
   default_user:
     name: ${username}
@@ -10,16 +88,19 @@ system_info:
     - ${ssh_key_pub}
 
 runcmd:
-  - sysctl -w net.ipv4.ip_forward=1
-  - sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
-  - sysctl -p /etc/sysctl.conf
-  - swapoff -a
-  - sed -i '2s/^/#/' /etc/fstab
   - newhostn="${hostname}"
   - hostn=$(cat /etc/hostname)
   - echo "Exisitng hostname is $hostn"
   - echo "New hostname will be $newhostn"
   - sed -i "s/$hostn/$newhostn/g" /etc/hosts
   - sed -i "s/$hostn/$newhostn/g" /etc/hostname
+  - mkdir -p /nfs/home
+  - mount ${plex_ip}:/home/plex/plex-media /nfs/home
+  - systemctl stop transmission-daemon
+  - cp /home/ubuntu/settings.json /etc/transmission-daemon/settings.json
+  - chmod 0600 /etc/transmission-daemon/settings.json
+  - sudo chown debian-transmission:debian-transmission /etc/transmission-daemon/settings.json 
+  - systemctl start transmission-daemon
+  - echo "${plex_ip}:/home/plex/plex-media /nfs/home  nfs      rw    0       0" >> /etc/fstab
 power_state:
   mode: reboot
